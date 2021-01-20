@@ -151,8 +151,7 @@ def serialize(packet):
     """
     Serialize flattened packet
     """
-
-    result = packet.show(dump = True)
+    result = packet.show(dump=True)
     if ignore_macs:
         result = re.split(r'###\[ IP \]###', result)[1]
     if ignore_ttl:
@@ -178,7 +177,7 @@ def read_dump(pcap_file):
     with PcapReader(pcap_file) as pcap_reader:
         for packet in pcap_reader:
             count += 1
-            dump[serialize(packet)] = packet
+            dump[serialize(packet)] = (packet, packet.time)
 
     if not be_quiet:
         sys.stdout.write("Found " + str(count) + " packets\n\n")
@@ -229,8 +228,8 @@ base_dump = dumps.pop(0)
 if not be_quiet:
     print("Diffing packets: " + compare_summary())
 
-for packet in base_dump.values():
-    serial_packet = serialize(packet)
+for packet_tuple in base_dump.values():
+    serial_packet = serialize(packet_tuple[0])
     found_packet = False
 
     for dump in dumps:
@@ -240,8 +239,8 @@ for packet in base_dump.values():
 
     if not diff_only_right and not found_packet:
         if show_diffs:
-            print(" <<< " + packet.summary())
-        diff_packets.append(packet)
+            print(" <<< " + packet_tuple[0].summary())
+        diff_packets.append(packet_tuple)
 
 if not diff_only_left:
     for dump in dumps:
@@ -249,18 +248,24 @@ if not diff_only_left:
             diff_packets.extend(dump.values())
 
             if show_diffs:
-                for packet in dump.values():
-                    print(" >>> " + packet.summary())
+                for packet_tuple in dump.values():
+                    print(" >>> " + packet_tuple[0].summary())
 
 if not be_quiet:
     print("\nFound " + str(len(diff_packets)) + " different packets\n")
 
+diff_packets.sort(key=lambda x: x[1])
+
+out_dump = []
+for item in diff_packets:
+    out_dump.append(item[0])
+
 # Write pcap diff file?
-if output_file and diff_packets:
+if output_file and out_dump:
     if not be_quiet:
         print("Writing " + output_file)
-    wrpcap(output_file, diff_packets)
+    wrpcap(output_file, out_dump)
 
-    sys.exit(len(diff_packets))
+    sys.exit(len(out_dump))
 else:
     sys.exit(0)

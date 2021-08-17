@@ -154,12 +154,15 @@ def serialize(packet):
     result = packet.show(dump=True)
     if ignore_macs:
         result = re.split(r'###\[ IP \]###', result)[1]
+        result = '###[ IP ]###' + result
     if ignore_ttl:
         result = re.sub(r'\s+ttl\s+=\s+\d+', '', result)
     if ignore_ck:
         result = re.sub(r'\s+chksum\s+=\s+\S+', '', result)
-
-    return result
+    stripped_result = str()
+    for line in result:
+        stripped_result = stripped_result + line.strip()
+    return stripped_result
 
 
 def read_dump(pcap_file):
